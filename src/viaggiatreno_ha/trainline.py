@@ -65,7 +65,7 @@ class TrainLineStatus:
     suppressed_stops: list[int]
     day: datetime.datetime
     stops: list[TrainStop]
-    last_update: datetime.datetime
+    last_update: datetime.datetime | None
     delay: int
     origin: str
     destination: str
@@ -89,7 +89,10 @@ class TrainLineStatus:
         y, m, d = map(int, data["dataPartenzaTrenoAsDate"].split("-"))
         self.day = datetime.datetime(y, m, d,
                                      tzinfo=Viaggiatreno.TZ)
-        self.last_update = Viaggiatreno.ms_ts_to_dt(data['ultimoRilev'])
+        if data['ultimoRilev'] is not None:
+            self.last_update = Viaggiatreno.ms_ts_to_dt(data['ultimoRilev'])
+        else:
+            self.last_update = None
         self.stops = []
         for stop in data['fermate']:
             scheduled = Viaggiatreno.ms_ts_to_dt(stop['programmata'])
