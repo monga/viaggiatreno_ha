@@ -1,13 +1,14 @@
-from viaggiatreno_ha import trainline
+from viaggiatreno_ha.trainline import Viaggiatreno, TrainLine, TrainLineStatus
 from aiohttp.test_utils import AioHTTPTestCase
 from aiohttp import web
 import json
 import datetime
 from zoneinfo import ZoneInfo
+from unittest import TestCase
 from unittest.mock import patch
-import logging
+# import logging
 
-logging.basicConfig(level=logging.INFO)
+# logging.basicConfig(level=logging.INFO)
 
 
 class ViaggiatrenoTestCase(AioHTTPTestCase):
@@ -43,11 +44,11 @@ class ViaggiatrenoTestCase(AioHTTPTestCase):
                               tzinfo=ZoneInfo("America/Los_Angeles"))
         mock_datetime.datetime.return_value = \
             datetime.datetime(2026, 1, 2,
-                              tzinfo=trainline.Viaggiatreno.TZ)
-        vt = trainline.Viaggiatreno(self.client)
+                              tzinfo=Viaggiatreno.TZ)
+        vt = Viaggiatreno(self.client)
         vt.ENDPOINT = '/{station_id}/{train_id}/{timestamp}'
 
-        tl = trainline.TrainLine('S01765', '136')
+        tl = TrainLine('S01765', '136')
         await vt.query(tl)
         data = json.loads(vt.json[tl])
         self.assertEqual(data['origine'], 'COMO LAGO')
@@ -59,11 +60,11 @@ class ViaggiatrenoTestCase(AioHTTPTestCase):
                               tzinfo=ZoneInfo("America/Los_Angeles"))
         mock_datetime.datetime.return_value = \
             datetime.datetime(2026, 1, 1,
-                              tzinfo=trainline.Viaggiatreno.TZ)
-        vt = trainline.Viaggiatreno(self.client)
+                              tzinfo=Viaggiatreno.TZ)
+        vt = Viaggiatreno(self.client)
         vt.ENDPOINT = '/{station_id}/{train_id}/{timestamp}'
 
-        tl = trainline.TrainLine('S01765', '136')
+        tl = TrainLine('S01765', '136')
         await vt.query(tl)
         self.assertNotIn(tl, vt.json)
 
@@ -74,11 +75,11 @@ class ViaggiatrenoTestCase(AioHTTPTestCase):
                               tzinfo=ZoneInfo("America/Los_Angeles"))
         mock_datetime.datetime.return_value = \
             datetime.datetime(2026, 1, 1,
-                              tzinfo=trainline.Viaggiatreno.TZ)
-        vt = trainline.Viaggiatreno(self.client)
+                              tzinfo=Viaggiatreno.TZ)
+        vt = Viaggiatreno(self.client)
         vt.ENDPOINT = '/{station_id}/{train_id}/{timestamp}'
 
-        tl = trainline.TrainLine('S01765', '666')
+        tl = TrainLine('S01765', '666')
         await vt.query(tl)
         self.assertNotIn(tl, vt.json)
 
@@ -89,10 +90,48 @@ class ViaggiatrenoTestCase(AioHTTPTestCase):
                               tzinfo=ZoneInfo("America/Los_Angeles"))
         mock_datetime.datetime.return_value = \
             datetime.datetime(2026, 1, 1,
-                              tzinfo=trainline.Viaggiatreno.TZ)
-        vt = trainline.Viaggiatreno(self.client)
+                              tzinfo=Viaggiatreno.TZ)
+        vt = Viaggiatreno(self.client)
         vt.ENDPOINT = '/{station_id}/{train_id}/{timestamp}'
 
-        tl = trainline.TrainLine('666', '666')
+        tl = TrainLine('666', '666')
         await vt.query(tl)
         self.assertNotIn(tl, vt.json)
+
+
+class TrainLineStatusTestCase(TestCase):
+
+    def test_json_parsing1(self):
+        ts: TrainLineStatus
+        with open('1767308400000.json') as js:
+            ts = TrainLineStatus(js.read())
+
+        self.assertEqual(ts.train,
+                         TrainLine('S01765', '136'))
+        self.assertEqual(ts.train_type, 'PG')
+        self.assertEqual(ts.suppressed_stops, [])
+        self.assertEqual(ts.day,
+                         datetime.datetime(2026, 1, 2,
+                                           tzinfo=Viaggiatreno.TZ))
+        self.assertEqual(len(ts.stops), 15)
+        self.assertEqual(ts.stops[-1].name, 'MILANO CADORNA')
+        self.assertEqual(ts.delay, 1)
+        self.assertEqual(ts.origin, 'COMO LAGO')
+        self.assertEqual(ts.destination, 'MILANO CADORNA')
+        self.assertEqual(ts.running, True)
+        self.assertEqual(ts.arrived, False)
+        self.assertEqual(ts.scheduled_start,
+                         datetime.datetime(2026, 1, 2, 10, 16,
+                                           tzinfo=Viaggiatreno.TZ))
+        self.assertEqual(ts.scheduled_end,
+                         datetime.datetime(2026, 1, 2, 11, 18,
+                                           tzinfo=Viaggiatreno.TZ))
+        self.assertEqual(ts.actual_start,
+                         datetime.datetime(2026, 1, 2, 10, 17,
+                                           tzinfo=Viaggiatreno.TZ))
+        self.assertEqual(ts.actual_end,
+                         datetime.datetime(2026, 1, 2, 11, 19,
+                                           tzinfo=Viaggiatreno.TZ))
+        self.assertEqual(ts.status, None)
+        self.assertEqual(ts.in_station, False)
+        self.assertEqual(ts.not_started, False)

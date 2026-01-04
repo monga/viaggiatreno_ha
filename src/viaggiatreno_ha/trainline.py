@@ -43,20 +43,104 @@ class Viaggiatreno:
                 js = await response.json()
                 self.json[line] = js
 
+    @classmethod
+    def ms_ts_to_dt(cls, timestamp: int) -> datetime.datetime:
+        return datetime.datetime.fromtimestamp(timestamp/1000,
+                                               tz=cls.TZ)
+
 
 @dataclass
 class TrainStop:
     name: str
     station_id: str
-    scheduled: int
-    actual: int | None
+    scheduled: datetime.datetime
+    actual: datetime.datetime | None
     delay: int
     actual_track: str | None
 
 
-class Treno:
-    def __init__(self,
-                 station_id: str,
-                 train_id: str):
-        pass
+class TrainLineStatus:
+    train: TrainLine
+    train_type: str
+    suppressed_stops: list[int]
+    day: datetime.datetime
+    stops: list[TrainStop]
+    last_update: datetime.datetime
+    delay: int
+    origin: str
+    destination: str
+    running: bool
+    arrived: bool
+    scheduled_start: datetime.datetime
+    scheduled_end: datetime.datetime
+    actual_start: datetime.datetime
+    actual_end: datetime.datetime
+    status: str | None
+    in_station: bool
+    not_started: bool
+
+    def __init__(self, json_data: str):
+        data = json.loads(json_data)
+
+        self.train = TrainLine(str(data['idOrigine']),
+                               str(data['numeroTreno']))
+        self.train_type = data["tipoTreno"]
+        self.suppressed_stops = data["fermateSoppresse"]
+        y, m, d = map(int, data["dataPartenzaTrenoAsDate"].split("-"))
+        self.day = datetime.datetime(y, m, d,
+                                     tzinfo=Viaggiatreno.TZ)
+        self.last_update = Viaggiatreno.ms_ts_to_dt(data['ultimoRilev'])
+        self.stops = []
+        for stop in data['fermate']:
+            scheduled = Viaggiatreno.ms_ts_to_dt(stop['programmata'])
+            if stop['effettiva'] is not None:
+                actual = Viaggiatreno.ms_ts_to_dt(stop['effettiva'])
+            else:
+                actual = None
+            if stop['binarioEffettivoArrivoDescrizione'] is not None:
+                track = stop['binarioEffettivoArrivoDescrizione']
+            else:
+                track = None
+
+            s = TrainStop(stop['stazione'],
+                          stop['id'],
+                          scheduled,
+                          actual,
+                          stop['ritardo'],
+                          track)
+            self.stops.append(s)
+        self.delay = data['ritardo']
+        self.origin = data['origine']
+        self.destination = data['destinazione']
+        self.running = data['circolante']
+        self.arrived = data['arrivato']
+        self.scheduled_start = Viaggiatreno.ms_ts_to_dt(data['orarioPartenza'])
+        self.scheduled_end = Viaggiatreno.ms_ts_to_dt(data['orarioArrivo'])
+        if data["compOrarioPartenzaZeroEffettivo"] is not None:
+            h, m = map(int, data["compOrarioPartenzaZeroEffettivo"].split(':'))
+            self.actual_start = datetime.datetime(self.scheduled_start.year,
+                                                  self.scheduled_start.month,
+                                                  self.scheduled_start.day,
+                                                  h, m,
+                                                  tzinfo=Viaggiatreno.TZ)
+        else:
+            self.actual_start = None
+        if data["compOrarioArrivoZeroEffettivo"] is not None:
+            h, m = map(int, data["compOrarioArrivoZeroEffettivo"].split(':'))
+            self.actual_end = datetime.datetime(self.scheduled_end.year,
+                                                self.scheduled_end.month,
+                                                self.scheduled_end.day,
+                                                h, m,
+                                                tzinfo=Viaggiatreno.TZ)
+        else:
+            self.actual_end = None
+
+        self.status = data['statoTreno']
+        self.in_station = data['inStazione']
+        self.not_started = data['nonPartito']
+
+
+    # actual_start: datetime.datetime
+    # actual_end: datetime.datetime
+
 
