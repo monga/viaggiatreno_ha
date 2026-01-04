@@ -103,35 +103,43 @@ class TrainLineStatusTestCase(TestCase):
 
     def test_json_parsing1(self):
         ts: TrainLineStatus
-        with open('1767308400000.json') as js:
-            ts = TrainLineStatus(js.read())
 
-        self.assertEqual(ts.train,
-                         TrainLine('S01765', '136'))
-        self.assertEqual(ts.train_type, 'PG')
-        self.assertEqual(ts.suppressed_stops, [])
-        self.assertEqual(ts.day,
-                         datetime.datetime(2026, 1, 2,
-                                           tzinfo=Viaggiatreno.TZ))
-        self.assertEqual(len(ts.stops), 15)
-        self.assertEqual(ts.stops[-1].name, 'MILANO CADORNA')
-        self.assertEqual(ts.delay, 1)
-        self.assertEqual(ts.origin, 'COMO LAGO')
-        self.assertEqual(ts.destination, 'MILANO CADORNA')
-        self.assertEqual(ts.running, True)
-        self.assertEqual(ts.arrived, False)
-        self.assertEqual(ts.scheduled_start,
-                         datetime.datetime(2026, 1, 2, 10, 16,
-                                           tzinfo=Viaggiatreno.TZ))
-        self.assertEqual(ts.scheduled_end,
-                         datetime.datetime(2026, 1, 2, 11, 18,
-                                           tzinfo=Viaggiatreno.TZ))
-        self.assertEqual(ts.actual_start,
-                         datetime.datetime(2026, 1, 2, 10, 17,
-                                           tzinfo=Viaggiatreno.TZ))
-        self.assertEqual(ts.actual_end,
-                         datetime.datetime(2026, 1, 2, 11, 19,
-                                           tzinfo=Viaggiatreno.TZ))
-        self.assertEqual(ts.status, None)
-        self.assertEqual(ts.in_station, False)
-        self.assertEqual(ts.not_started, False)
+        expected = {
+            '1767308400000.json': {
+                'train': TrainLine('S01765', '136'),
+                'train_type': 'PG',
+                'suppressed_stops': [],
+                'day': datetime.datetime(2026, 1, 2,
+                                         tzinfo=Viaggiatreno.TZ),
+                lambda t: len(t.stops): 15,
+                lambda t: t.stops[-1].name: 'MILANO CADORNA',
+                'delay': 1,
+                'origin': 'COMO LAGO',
+                'destination': 'MILANO CADORNA',
+                'running': True,
+                'arrived': False,
+                'scheduled_start': datetime.datetime(2026, 1, 2, 10, 16,
+                                                     tzinfo=Viaggiatreno.TZ),
+                'scheduled_end': datetime.datetime(2026, 1, 2, 11, 18,
+                                                   tzinfo=Viaggiatreno.TZ),
+                'actual_start': datetime.datetime(2026, 1, 2, 10, 17,
+                                                  tzinfo=Viaggiatreno.TZ),
+                'actual_end': datetime.datetime(2026, 1, 2, 11, 19,
+                                                tzinfo=Viaggiatreno.TZ),
+                'status': None,
+                'in_station': False,
+                'not_started': False
+            }
+        }
+
+        for j in expected:
+            with self.subTest(f'Subtest: {j}'):
+                with open(j) as js:
+                    ts = TrainLineStatus(js.read())
+                for k, value in expected[j].items():
+                    if isinstance(k, str):
+                        self.assertEqual(getattr(ts, k), value, f'wrong {k}')
+                    elif callable(k):
+                        self.assertEqual(k(ts), value, f'wrong {k}')
+                    else:
+                        assert False, f"{k} not expected"
