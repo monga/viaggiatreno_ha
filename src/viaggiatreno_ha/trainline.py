@@ -27,9 +27,18 @@ class Viaggiatreno:
         self.session = session
         self.json: dict[TrainLine, str] = {}
 
-    async def query(self, line: TrainLine):
-        now = datetime.datetime.now(tz=self.TZ)
-        midnight = datetime.datetime(now.year, now.month, now.day,
+    @classmethod
+    def ms_ts_to_dt(cls, timestamp: int) -> datetime.datetime:
+        return datetime.datetime.fromtimestamp(timestamp/1000,
+                                               tz=cls.TZ)
+
+    async def query(self, line: TrainLine,
+                    get_current_time=lambda:
+                    datetime.datetime.now(tz=Viaggiatreno.TZ)):
+        current_time = get_current_time()
+        midnight = datetime.datetime(current_time.year,
+                                     current_time.month,
+                                     current_time.day,
                                      tzinfo=self.TZ)
         midnight_ms = 1000 * int(midnight.timestamp())
         uri = self.ENDPOINT.format(station_id=line.starting_station,
@@ -43,10 +52,20 @@ class Viaggiatreno:
                 js = await response.json()
                 self.json[line] = js
 
-    @classmethod
-    def ms_ts_to_dt(cls, timestamp: int) -> datetime.datetime:
-        return datetime.datetime.fromtimestamp(timestamp/1000,
-                                               tz=cls.TZ)
+    async def query_if_running(self, line: TrainLine,
+                               get_current_time=lambda:
+                               datetime.datetime.now(tz=Viaggiatreno.TZ)):
+        if line not in self.json:
+            await self.query(line)
+        else:
+            data = json.loads(self.json[line])
+            now = get_current_time()
+            start = (Viaggiatreno.ms_ts_to_dt(data['orarioPartenza'])
+                     - datetime.timedelta(minutes=30))
+            end = (Viaggiatreno.ms_ts_to_dt(data['orarioArrivo'])
+                   + datetime.timedelta(hours=3))
+            if start <= now <= end:
+                await self.query(line)
 
 
 @dataclass
@@ -73,8 +92,8 @@ class TrainLineStatus:
     arrived: bool
     scheduled_start: datetime.datetime
     scheduled_end: datetime.datetime
-    actual_start: datetime.datetime
-    actual_end: datetime.datetime
+    actual_start: datetime.datetime | None
+    actual_end: datetime.datetime | None
     status: str | None
     in_station: bool
     not_started: bool
@@ -143,7 +162,13 @@ class TrainLineStatus:
         self.not_started = data['nonPartito']
 
 
-    # actual_start: datetime.datetime
-    # actual_end: datetime.datetime
+async def main():
+    async with aiohttp.ClientSession() as session:
+        vt = Viaggiatreno(session)
+        tl = TrainLine('S01765', '136')
+        await vt.query(tl)
+        print(vt.json[tl])
 
-
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())
