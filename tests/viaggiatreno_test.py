@@ -5,7 +5,7 @@ import json
 import datetime
 from zoneinfo import ZoneInfo
 from unittest import TestCase, skip
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, AsyncMock
 # import logging
 
 # logging.basicConfig(level=logging.INFO)
@@ -83,37 +83,47 @@ class ViaggiatrenoTestCase(AioHTTPTestCase):
         await vt.query(tl, get_current_time=lambda: mock_datetime)
         self.assertNotIn(tl, vt.json)
 
-    @patch('viaggiatreno_ha.trainline.datetime')
-    async def test_query_if_running_first(self, mock_datetime):
-        mock_datetime.now.return_value = \
+    async def test_query_if_running_first(self):
+        mock_datetime = \
             datetime.datetime(2026, 1, 2,
                               tzinfo=Viaggiatreno.TZ)
         vt = Viaggiatreno(self.client)
         vt.ENDPOINT = '/{station_id}/{train_id}/{timestamp}'
-        vt.query = MagicMock()
+        vt.query = AsyncMock()
 
         tl = TrainLine('S01765', '136')
-        await vt.query_if_running(tl)
-        vt.query.assert_called_once()
+        await vt.query_if_running(tl, get_current_time=lambda: mock_datetime)
+        vt.query.assert_awaited_once()
 
-    @skip
-    @patch('viaggiatreno_ha.trainline.datetime')
-    async def test_query_if_running_ok(self, mock_datetime):
-        mock_datetime.now.return_value = \
+    async def test_query_if_running_ok(self):
+        mock_datetime = \
             datetime.datetime(2026, 1, 2, 11, 15,
                               tzinfo=Viaggiatreno.TZ)
-        mock_datetime.datetime.return_value = 12
-
         vt = Viaggiatreno(self.client)
         vt.ENDPOINT = '/{station_id}/{train_id}/{timestamp}'
-        vt.query = MagicMock()
+        vt.query = AsyncMock()
 
         tl = TrainLine('S01765', '136')
         with open('1767308400000.json') as js:
             vt.json[tl] = js.read()
 
-        await vt.query_if_running(tl)
-        vt.query.assert_called_once()
+        await vt.query_if_running(tl, get_current_time=lambda: mock_datetime)
+        vt.query.assert_awaited_once()
+
+    async def test_query_if_running_no(self):
+        mock_datetime = \
+            datetime.datetime(2026, 1, 2, 8, 0,  # Too early
+                              tzinfo=Viaggiatreno.TZ)
+        vt = Viaggiatreno(self.client)
+        vt.ENDPOINT = '/{station_id}/{train_id}/{timestamp}'
+        vt.query = AsyncMock()
+
+        tl = TrainLine('S01765', '136')
+        with open('1767308400000.json') as js:
+            vt.json[tl] = js.read()
+
+        await vt.query_if_running(tl, get_current_time=lambda: mock_datetime)
+        vt.query.assert_not_awaited()
 
 
 class TrainLineStatusTestCase(TestCase):

@@ -52,17 +52,20 @@ class Viaggiatreno:
                 js = await response.json()
                 self.json[line] = js
 
-    async def query_if_running(self, line: TrainLine):
+    async def query_if_running(self, line: TrainLine,
+                               get_current_time=lambda:
+                               datetime.datetime.now(tz=Viaggiatreno.TZ)):
         if line not in self.json:
-            self.query(line)
+            await self.query(line)
         else:
             data = json.loads(self.json[line])
-            now = datetime.datetime.now(tz=self.TZ)
-            start = Viaggiatreno.ms_ts_to_dt(data['orarioPartenza'])
-            end = Viaggiatreno.ms_ts_to_dt(data['orarioArrivo'])
-            print(type(start))
-            if start < now:
-                self.query(line)
+            now = get_current_time()
+            start = (Viaggiatreno.ms_ts_to_dt(data['orarioPartenza'])
+                     - datetime.timedelta(minutes=30))
+            end = (Viaggiatreno.ms_ts_to_dt(data['orarioArrivo'])
+                   + datetime.timedelta(hours=3))
+            if start <= now <= end:
+                await self.query(line)
 
 
 @dataclass
