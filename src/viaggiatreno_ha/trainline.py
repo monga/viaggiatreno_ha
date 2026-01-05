@@ -27,9 +27,18 @@ class Viaggiatreno:
         self.session = session
         self.json: dict[TrainLine, str] = {}
 
-    async def query(self, line: TrainLine):
-        now = datetime.datetime.now(tz=self.TZ)
-        midnight = datetime.datetime(now.year, now.month, now.day,
+    @classmethod
+    def ms_ts_to_dt(cls, timestamp: int) -> datetime.datetime:
+        return datetime.datetime.fromtimestamp(timestamp/1000,
+                                               tz=cls.TZ)
+
+    async def query(self, line: TrainLine,
+                    get_current_time: lambda: datetime.datetime =
+                    datetime.datetime.now(tz=TZ)):
+        current_time = get_current_time()
+        midnight = datetime.datetime(current_time.year,
+                                     current_time.month,
+                                     current_time.day,
                                      tzinfo=self.TZ)
         midnight_ms = 1000 * int(midnight.timestamp())
         uri = self.ENDPOINT.format(station_id=line.starting_station,
@@ -43,10 +52,17 @@ class Viaggiatreno:
                 js = await response.json()
                 self.json[line] = js
 
-    @classmethod
-    def ms_ts_to_dt(cls, timestamp: int) -> datetime.datetime:
-        return datetime.datetime.fromtimestamp(timestamp/1000,
-                                               tz=cls.TZ)
+    async def query_if_running(self, line: TrainLine):
+        if line not in self.json:
+            self.query(line)
+        else:
+            data = json.loads(self.json[line])
+            now = datetime.datetime.now(tz=self.TZ)
+            start = Viaggiatreno.ms_ts_to_dt(data['orarioPartenza'])
+            end = Viaggiatreno.ms_ts_to_dt(data['orarioArrivo'])
+            print(type(start))
+            if start < now:
+                self.query(line)
 
 
 @dataclass
@@ -73,8 +89,8 @@ class TrainLineStatus:
     arrived: bool
     scheduled_start: datetime.datetime
     scheduled_end: datetime.datetime
-    actual_start: datetime.datetime
-    actual_end: datetime.datetime
+    actual_start: datetime.datetime | None
+    actual_end: datetime.datetime | None
     status: str | None
     in_station: bool
     not_started: bool
@@ -88,7 +104,7 @@ class TrainLineStatus:
         self.suppressed_stops = data["fermateSoppresse"]
         y, m, d = map(int, data["dataPartenzaTrenoAsDate"].split("-"))
         self.day = datetime.datetime(y, m, d,
-                                     tzinfo=Viaggiatreno.TZ)
+                      tzinfo=Viaggiatreno.TZ)
         if data['ultimoRilev'] is not None:
             self.last_update = Viaggiatreno.ms_ts_to_dt(data['ultimoRilev'])
         else:
@@ -141,9 +157,3 @@ class TrainLineStatus:
         self.status = data['statoTreno']
         self.in_station = data['inStazione']
         self.not_started = data['nonPartito']
-
-
-    # actual_start: datetime.datetime
-    # actual_end: datetime.datetime
-
-

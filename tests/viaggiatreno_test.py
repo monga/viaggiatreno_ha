@@ -4,8 +4,8 @@ from aiohttp import web
 import json
 import datetime
 from zoneinfo import ZoneInfo
-from unittest import TestCase
-from unittest.mock import patch
+from unittest import TestCase, skip
+from unittest.mock import patch, MagicMock
 # import logging
 
 # logging.basicConfig(level=logging.INFO)
@@ -37,66 +37,83 @@ class ViaggiatrenoTestCase(AioHTTPTestCase):
         app.router.add_get('/666/*/*', error404)
         return app
 
-    @patch('viaggiatreno_ha.trainline.datetime')
-    async def test_query_connection(self, mock_datetime):
-        mock_datetime.now.return_value = \
+    async def test_query_connection(self):
+        mock_datetime = \
             datetime.datetime(2026, 1, 2,
                               tzinfo=ZoneInfo("America/Los_Angeles"))
-        mock_datetime.datetime.return_value = \
-            datetime.datetime(2026, 1, 2,
-                              tzinfo=Viaggiatreno.TZ)
         vt = Viaggiatreno(self.client)
         vt.ENDPOINT = '/{station_id}/{train_id}/{timestamp}'
 
         tl = TrainLine('S01765', '136')
-        await vt.query(tl)
+        await vt.query(tl, get_current_time=lambda: mock_datetime)
+        self.assertIn(tl, vt.json)
         data = json.loads(vt.json[tl])
         self.assertEqual(data['origine'], 'COMO LAGO')
 
-    @patch('viaggiatreno_ha.trainline.datetime')
-    async def test_past_date_error(self, mock_datetime):
-        mock_datetime.now.return_value = \
+    async def test_past_date_error(self):
+        mock_datetime = \
             datetime.datetime(2026, 1, 1,
                               tzinfo=ZoneInfo("America/Los_Angeles"))
-        mock_datetime.datetime.return_value = \
-            datetime.datetime(2026, 1, 1,
-                              tzinfo=Viaggiatreno.TZ)
         vt = Viaggiatreno(self.client)
         vt.ENDPOINT = '/{station_id}/{train_id}/{timestamp}'
 
         tl = TrainLine('S01765', '136')
-        await vt.query(tl)
+        await vt.query(tl, get_current_time=lambda: mock_datetime)
         self.assertNotIn(tl, vt.json)
 
-    @patch('viaggiatreno_ha.trainline.datetime')
-    async def test_204_error(self, mock_datetime):
-        mock_datetime.now.return_value = \
+    async def test_204_error(self):
+        mock_datetime = \
             datetime.datetime(2026, 1, 1,
                               tzinfo=ZoneInfo("America/Los_Angeles"))
-        mock_datetime.datetime.return_value = \
-            datetime.datetime(2026, 1, 1,
-                              tzinfo=Viaggiatreno.TZ)
         vt = Viaggiatreno(self.client)
         vt.ENDPOINT = '/{station_id}/{train_id}/{timestamp}'
 
         tl = TrainLine('S01765', '666')
-        await vt.query(tl)
+        await vt.query(tl, get_current_time=lambda: mock_datetime)
         self.assertNotIn(tl, vt.json)
 
-    @patch('viaggiatreno_ha.trainline.datetime')
-    async def test_404_error(self, mock_datetime):
-        mock_datetime.now.return_value = \
+    async def test_404_error(self):
+        mock_datetime = \
             datetime.datetime(2026, 1, 1,
                               tzinfo=ZoneInfo("America/Los_Angeles"))
-        mock_datetime.datetime.return_value = \
-            datetime.datetime(2026, 1, 1,
-                              tzinfo=Viaggiatreno.TZ)
         vt = Viaggiatreno(self.client)
         vt.ENDPOINT = '/{station_id}/{train_id}/{timestamp}'
 
         tl = TrainLine('666', '666')
-        await vt.query(tl)
+        await vt.query(tl, get_current_time=lambda: mock_datetime)
         self.assertNotIn(tl, vt.json)
+
+    @patch('viaggiatreno_ha.trainline.datetime')
+    async def test_query_if_running_first(self, mock_datetime):
+        mock_datetime.now.return_value = \
+            datetime.datetime(2026, 1, 2,
+                              tzinfo=Viaggiatreno.TZ)
+        vt = Viaggiatreno(self.client)
+        vt.ENDPOINT = '/{station_id}/{train_id}/{timestamp}'
+        vt.query = MagicMock()
+
+        tl = TrainLine('S01765', '136')
+        await vt.query_if_running(tl)
+        vt.query.assert_called_once()
+
+    @skip
+    @patch('viaggiatreno_ha.trainline.datetime')
+    async def test_query_if_running_ok(self, mock_datetime):
+        mock_datetime.now.return_value = \
+            datetime.datetime(2026, 1, 2, 11, 15,
+                              tzinfo=Viaggiatreno.TZ)
+        mock_datetime.datetime.return_value = 12
+
+        vt = Viaggiatreno(self.client)
+        vt.ENDPOINT = '/{station_id}/{train_id}/{timestamp}'
+        vt.query = MagicMock()
+
+        tl = TrainLine('S01765', '136')
+        with open('1767308400000.json') as js:
+            vt.json[tl] = js.read()
+
+        await vt.query_if_running(tl)
+        vt.query.assert_called_once()
 
 
 class TrainLineStatusTestCase(TestCase):
@@ -108,6 +125,8 @@ class TrainLineStatusTestCase(TestCase):
             '1767308400000.json': {
                 'train': TrainLine('S01765', '136'),
                 'train_type': 'PG',
+                'last_update': datetime.datetime(2026, 1, 2, 11, 10, 32,
+                                                 tzinfo=Viaggiatreno.TZ),
                 'suppressed_stops': [],
                 'day': datetime.datetime(2026, 1, 2,
                                          tzinfo=Viaggiatreno.TZ),
@@ -133,6 +152,7 @@ class TrainLineStatusTestCase(TestCase):
             '1767394800000.json': {
                 'train': TrainLine('S01765', '136'),
                 'train_type': 'PG',
+                'last_update': None,
                 'suppressed_stops': [],
                 'day': datetime.datetime(2026, 1, 3,
                                          tzinfo=Viaggiatreno.TZ),
@@ -158,6 +178,8 @@ class TrainLineStatusTestCase(TestCase):
             '1767481200000.json': {
                 'train': TrainLine('S01700', '9600'),
                 'train_type': 'PG',
+                'last_update': datetime.datetime(2026, 1, 4, 8, 15, 30,
+                                                 tzinfo=Viaggiatreno.TZ),
                 'suppressed_stops': [],
                 'day': datetime.datetime(2026, 1, 4,
                                          tzinfo=Viaggiatreno.TZ),
