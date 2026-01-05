@@ -33,8 +33,8 @@ class Viaggiatreno:
                                                tz=cls.TZ)
 
     async def query(self, line: TrainLine,
-                    get_current_time: lambda: datetime.datetime =
-                    datetime.datetime.now(tz=TZ)):
+                    get_current_time=lambda:
+                    datetime.datetime.now(tz=Viaggiatreno.TZ)):
         current_time = get_current_time()
         midnight = datetime.datetime(current_time.year,
                                      current_time.month,
@@ -104,7 +104,7 @@ class TrainLineStatus:
         self.suppressed_stops = data["fermateSoppresse"]
         y, m, d = map(int, data["dataPartenzaTrenoAsDate"].split("-"))
         self.day = datetime.datetime(y, m, d,
-                      tzinfo=Viaggiatreno.TZ)
+                                     tzinfo=Viaggiatreno.TZ)
         if data['ultimoRilev'] is not None:
             self.last_update = Viaggiatreno.ms_ts_to_dt(data['ultimoRilev'])
         else:
@@ -157,3 +157,15 @@ class TrainLineStatus:
         self.status = data['statoTreno']
         self.in_station = data['inStazione']
         self.not_started = data['nonPartito']
+
+
+async def main():
+    async with aiohttp.ClientSession() as session:
+        vt = Viaggiatreno(session)
+        tl = TrainLine('S01765', '136')
+        await vt.query(tl)
+        print(vt.json[tl])
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())
