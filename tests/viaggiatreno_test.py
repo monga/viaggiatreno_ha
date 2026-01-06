@@ -18,7 +18,7 @@ class ViaggiatrenoTestCase(AioHTTPTestCase):
         async def train(request):
             day = request.url.parts[-1]
             with open(f'{day}.json') as r:
-                return web.json_response(r.read())
+                return web.json_response(json.loads(r.read()))
 
         async def status204(request):
             return web.Response(status=204)
@@ -47,7 +47,7 @@ class ViaggiatrenoTestCase(AioHTTPTestCase):
         tl = TrainLine('S01765', '136')
         await vt.query(tl, get_current_time=lambda: mock_datetime)
         self.assertIn(tl, vt.json)
-        data = json.loads(vt.json[tl])
+        data = vt.json[tl]
         self.assertEqual(data['origine'], 'COMO LAGO')
 
     async def test_past_date_error(self):
@@ -212,7 +212,7 @@ class TrainLineStatusTestCase(TestCase):
         for j in expected:
             with self.subTest(f'Subtest: {j}'):
                 with open(j) as js:
-                    ts = TrainLineStatus(js.read())
+                    ts = TrainLineStatus(json.loads(js.read()))
                 for k, value in expected[j].items():
                     if isinstance(k, str):
                         self.assertEqual(getattr(ts, k), value, f'wrong {k}')

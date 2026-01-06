@@ -1,8 +1,8 @@
+from aiohttp import ClientTimeout, ClientSession  # type: ignore
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from dataclasses import dataclass
 import logging
-import aiohttp  # type: ignore
 import json
 
 _LOGGER = logging.getLogger(__name__)
@@ -20,10 +20,10 @@ class Viaggiatreno:
         "resteasy/viaggiatreno/andamentoTreno/"
         "{station_id}/{train_id}/{timestamp}"
     )
-    TIMEOUT = aiohttp.ClientTimeout(total=15, connect=5)  # seconds
+    TIMEOUT = ClientTimeout(total=15, connect=5)  # seconds
     TZ = ZoneInfo('Europe/Rome')
 
-    def __init__(self, session: aiohttp.ClientSession):
+    def __init__(self, session: ClientSession):
         self.session = session
         self.json: dict[TrainLine, str] = {}
 
@@ -50,6 +50,7 @@ class Viaggiatreno:
                                     timeout=self.TIMEOUT) as response:
             if response.status == 200:
                 js = await response.json()
+                assert isinstance(js, dict), f"Not a dict, but a {type(js)}"
                 self.json[line] = js
 
     async def query_if_running(self, line: TrainLine,
@@ -98,9 +99,7 @@ class TrainLineStatus:
     in_station: bool
     not_started: bool
 
-    def __init__(self, json_data: str):
-        data = json.loads(json_data)
-
+    def __init__(self, data: dict):
         self.train = TrainLine(str(data['idOrigine']),
                                str(data['numeroTreno']))
         self.train_type = data["tipoTreno"]
@@ -163,10 +162,10 @@ class TrainLineStatus:
 
 
 async def main():
-    async with aiohttp.ClientSession() as session:
+    async with ClientSession() as session:
         vt = Viaggiatreno(session)
         tl = TrainLine('S01765', '136')
-        await vt.query(tl)
+        await vt.query_if_running(tl)
         print(vt.json[tl])
 
 if __name__ == "__main__":
