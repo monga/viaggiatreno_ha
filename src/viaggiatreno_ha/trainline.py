@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from dataclasses import dataclass
 import logging
@@ -28,18 +28,18 @@ class Viaggiatreno:
         self.json: dict[TrainLine, str] = {}
 
     @classmethod
-    def ms_ts_to_dt(cls, timestamp: int) -> datetime.datetime:
-        return datetime.datetime.fromtimestamp(timestamp/1000,
-                                               tz=cls.TZ)
+    def ms_ts_to_dt(cls, timestamp: int) -> datetime:
+        return datetime.fromtimestamp(timestamp/1000,
+                                      tz=cls.TZ)
 
     async def query(self, line: TrainLine,
                     get_current_time=lambda:
-                    datetime.datetime.now(tz=Viaggiatreno.TZ)):
+                    datetime.now(tz=Viaggiatreno.TZ)):
         current_time = get_current_time()
-        midnight = datetime.datetime(current_time.year,
-                                     current_time.month,
-                                     current_time.day,
-                                     tzinfo=self.TZ)
+        midnight = datetime(current_time.year,
+                            current_time.month,
+                            current_time.day,
+                            tzinfo=self.TZ)
         midnight_ms = 1000 * int(midnight.timestamp())
         uri = self.ENDPOINT.format(station_id=line.starting_station,
                                    train_id=line.train_id,
@@ -54,16 +54,16 @@ class Viaggiatreno:
 
     async def query_if_running(self, line: TrainLine,
                                get_current_time=lambda:
-                               datetime.datetime.now(tz=Viaggiatreno.TZ)):
+                               datetime.now(tz=Viaggiatreno.TZ)):
         if line not in self.json:
             await self.query(line)
         else:
             data = json.loads(self.json[line])
             now = get_current_time()
             start = (Viaggiatreno.ms_ts_to_dt(data['orarioPartenza'])
-                     - datetime.timedelta(minutes=30))
+                     - timedelta(minutes=30))
             end = (Viaggiatreno.ms_ts_to_dt(data['orarioArrivo'])
-                   + datetime.timedelta(hours=3))
+                   + timedelta(hours=3))
             if start <= now <= end:
                 await self.query(line)
 
@@ -72,8 +72,8 @@ class Viaggiatreno:
 class TrainStop:
     name: str
     station_id: str
-    scheduled: datetime.datetime
-    actual: datetime.datetime | None
+    scheduled: datetime
+    actual: datetime | None
     delay: int
     actual_track: str | None
 
@@ -82,18 +82,18 @@ class TrainLineStatus:
     train: TrainLine
     train_type: str
     suppressed_stops: list[int]
-    day: datetime.datetime
+    day: datetime
     stops: list[TrainStop]
-    last_update: datetime.datetime | None
+    last_update: datetime | None
     delay: int
     origin: str
     destination: str
     running: bool
     arrived: bool
-    scheduled_start: datetime.datetime
-    scheduled_end: datetime.datetime
-    actual_start: datetime.datetime | None
-    actual_end: datetime.datetime | None
+    scheduled_start: datetime
+    scheduled_end: datetime
+    actual_start: datetime | None
+    actual_end: datetime | None
     status: str | None
     in_station: bool
     not_started: bool
@@ -106,8 +106,8 @@ class TrainLineStatus:
         self.train_type = data["tipoTreno"]
         self.suppressed_stops = data["fermateSoppresse"]
         y, m, d = map(int, data["dataPartenzaTrenoAsDate"].split("-"))
-        self.day = datetime.datetime(y, m, d,
-                                     tzinfo=Viaggiatreno.TZ)
+        self.day = datetime(y, m, d,
+                            tzinfo=Viaggiatreno.TZ)
         if data['ultimoRilev'] is not None:
             self.last_update = Viaggiatreno.ms_ts_to_dt(data['ultimoRilev'])
         else:
@@ -140,20 +140,20 @@ class TrainLineStatus:
         self.scheduled_end = Viaggiatreno.ms_ts_to_dt(data['orarioArrivo'])
         if data["compOrarioPartenzaZeroEffettivo"] is not None:
             h, m = map(int, data["compOrarioPartenzaZeroEffettivo"].split(':'))
-            self.actual_start = datetime.datetime(self.scheduled_start.year,
-                                                  self.scheduled_start.month,
-                                                  self.scheduled_start.day,
-                                                  h, m,
-                                                  tzinfo=Viaggiatreno.TZ)
+            self.actual_start = datetime(self.scheduled_start.year,
+                                         self.scheduled_start.month,
+                                         self.scheduled_start.day,
+                                         h, m,
+                                         tzinfo=Viaggiatreno.TZ)
         else:
             self.actual_start = None
         if data["compOrarioArrivoZeroEffettivo"] is not None:
             h, m = map(int, data["compOrarioArrivoZeroEffettivo"].split(':'))
-            self.actual_end = datetime.datetime(self.scheduled_end.year,
-                                                self.scheduled_end.month,
-                                                self.scheduled_end.day,
-                                                h, m,
-                                                tzinfo=Viaggiatreno.TZ)
+            self.actual_end = datetime(self.scheduled_end.year,
+                                       self.scheduled_end.month,
+                                       self.scheduled_end.day,
+                                       h, m,
+                                       tzinfo=Viaggiatreno.TZ)
         else:
             self.actual_end = None
 

@@ -2,10 +2,10 @@ from viaggiatreno_ha.trainline import Viaggiatreno, TrainLine, TrainLineStatus
 from aiohttp.test_utils import AioHTTPTestCase
 from aiohttp import web
 import json
-import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
-from unittest import TestCase, skip
-from unittest.mock import patch, AsyncMock
+from unittest import TestCase
+from unittest.mock import AsyncMock
 # import logging
 
 # logging.basicConfig(level=logging.INFO)
@@ -39,8 +39,8 @@ class ViaggiatrenoTestCase(AioHTTPTestCase):
 
     async def test_query_connection(self):
         mock_datetime = \
-            datetime.datetime(2026, 1, 2,
-                              tzinfo=ZoneInfo("America/Los_Angeles"))
+            datetime(2026, 1, 2,
+                     tzinfo=ZoneInfo("America/Los_Angeles"))
         vt = Viaggiatreno(self.client)
         vt.ENDPOINT = '/{station_id}/{train_id}/{timestamp}'
 
@@ -52,8 +52,8 @@ class ViaggiatrenoTestCase(AioHTTPTestCase):
 
     async def test_past_date_error(self):
         mock_datetime = \
-            datetime.datetime(2026, 1, 1,
-                              tzinfo=ZoneInfo("America/Los_Angeles"))
+            datetime(2026, 1, 1,
+                     tzinfo=ZoneInfo("America/Los_Angeles"))
         vt = Viaggiatreno(self.client)
         vt.ENDPOINT = '/{station_id}/{train_id}/{timestamp}'
 
@@ -63,8 +63,8 @@ class ViaggiatrenoTestCase(AioHTTPTestCase):
 
     async def test_204_error(self):
         mock_datetime = \
-            datetime.datetime(2026, 1, 1,
-                              tzinfo=ZoneInfo("America/Los_Angeles"))
+            datetime(2026, 1, 1,
+                     tzinfo=ZoneInfo("America/Los_Angeles"))
         vt = Viaggiatreno(self.client)
         vt.ENDPOINT = '/{station_id}/{train_id}/{timestamp}'
 
@@ -74,8 +74,8 @@ class ViaggiatrenoTestCase(AioHTTPTestCase):
 
     async def test_404_error(self):
         mock_datetime = \
-            datetime.datetime(2026, 1, 1,
-                              tzinfo=ZoneInfo("America/Los_Angeles"))
+            datetime(2026, 1, 1,
+                     tzinfo=ZoneInfo("America/Los_Angeles"))
         vt = Viaggiatreno(self.client)
         vt.ENDPOINT = '/{station_id}/{train_id}/{timestamp}'
 
@@ -85,8 +85,8 @@ class ViaggiatrenoTestCase(AioHTTPTestCase):
 
     async def test_query_if_running_first(self):
         mock_datetime = \
-            datetime.datetime(2026, 1, 2,
-                              tzinfo=Viaggiatreno.TZ)
+            datetime(2026, 1, 2,
+                     tzinfo=Viaggiatreno.TZ)
         vt = Viaggiatreno(self.client)
         vt.ENDPOINT = '/{station_id}/{train_id}/{timestamp}'
         vt.query = AsyncMock()
@@ -95,35 +95,30 @@ class ViaggiatrenoTestCase(AioHTTPTestCase):
         await vt.query_if_running(tl, get_current_time=lambda: mock_datetime)
         vt.query.assert_awaited_once()
 
-    async def test_query_if_running_ok(self):
-        mock_datetime = \
-            datetime.datetime(2026, 1, 2, 11, 15,
-                              tzinfo=Viaggiatreno.TZ)
-        vt = Viaggiatreno(self.client)
-        vt.ENDPOINT = '/{station_id}/{train_id}/{timestamp}'
-        vt.query = AsyncMock()
+    async def test_query_if_running(self):
+        expected = [{'delta_min': -15, 'awaitings': 1},
+                    {'delta_min': -31, 'awaitings': 0},
+                    {'delta_min': 62, 'awaitings': 1},
+                    {'delta_min': 3*60+62, 'awaitings': 1},
+                    {'delta_min': 3*60+63, 'awaitings': 0},
+                    ]
+        for tcase in expected:
+            with self.subTest(f"Query: {tcase['delta_min']}' Δ from start"):
+                mock_dt = datetime(2026, 1, 2, 10, 16,
+                                   tzinfo=Viaggiatreno.TZ) \
+                                   + timedelta(
+                                       minutes=tcase['delta_min'])
+                vt = Viaggiatreno(self.client)
+                vt.ENDPOINT = '/{station_id}/{train_id}/{timestamp}'
+                vt.query = AsyncMock()
 
-        tl = TrainLine('S01765', '136')
-        with open('1767308400000.json') as js:
-            vt.json[tl] = js.read()
+                tl = TrainLine('S01765', '136')
+                with open('1767308400000.json') as js:
+                    vt.json[tl] = js.read()
 
-        await vt.query_if_running(tl, get_current_time=lambda: mock_datetime)
-        vt.query.assert_awaited_once()
-
-    async def test_query_if_running_no(self):
-        mock_datetime = \
-            datetime.datetime(2026, 1, 2, 8, 0,  # Too early
-                              tzinfo=Viaggiatreno.TZ)
-        vt = Viaggiatreno(self.client)
-        vt.ENDPOINT = '/{station_id}/{train_id}/{timestamp}'
-        vt.query = AsyncMock()
-
-        tl = TrainLine('S01765', '136')
-        with open('1767308400000.json') as js:
-            vt.json[tl] = js.read()
-
-        await vt.query_if_running(tl, get_current_time=lambda: mock_datetime)
-        vt.query.assert_not_awaited()
+                await vt.query_if_running(tl,
+                                          get_current_time=lambda: mock_dt)
+                self.assertEqual(vt.query.await_count, tcase['awaitings'])
 
 
 class TrainLineStatusTestCase(TestCase):
@@ -135,11 +130,11 @@ class TrainLineStatusTestCase(TestCase):
             '1767308400000.json': {
                 'train': TrainLine('S01765', '136'),
                 'train_type': 'PG',
-                'last_update': datetime.datetime(2026, 1, 2, 11, 10, 32,
-                                                 tzinfo=Viaggiatreno.TZ),
+                'last_update': datetime(2026, 1, 2, 11, 10, 32,
+                                        tzinfo=Viaggiatreno.TZ),
                 'suppressed_stops': [],
-                'day': datetime.datetime(2026, 1, 2,
-                                         tzinfo=Viaggiatreno.TZ),
+                'day': datetime(2026, 1, 2,
+                                tzinfo=Viaggiatreno.TZ),
                 lambda t: len(t.stops): 15,
                 lambda t: t.stops[-1].name: 'MILANO CADORNA',
                 'delay': 1,
@@ -147,14 +142,14 @@ class TrainLineStatusTestCase(TestCase):
                 'destination': 'MILANO CADORNA',
                 'running': True,
                 'arrived': False,
-                'scheduled_start': datetime.datetime(2026, 1, 2, 10, 16,
-                                                     tzinfo=Viaggiatreno.TZ),
-                'scheduled_end': datetime.datetime(2026, 1, 2, 11, 18,
-                                                   tzinfo=Viaggiatreno.TZ),
-                'actual_start': datetime.datetime(2026, 1, 2, 10, 17,
-                                                  tzinfo=Viaggiatreno.TZ),
-                'actual_end': datetime.datetime(2026, 1, 2, 11, 19,
-                                                tzinfo=Viaggiatreno.TZ),
+                'scheduled_start': datetime(2026, 1, 2, 10, 16,
+                                            tzinfo=Viaggiatreno.TZ),
+                'scheduled_end': datetime(2026, 1, 2, 11, 18,
+                                          tzinfo=Viaggiatreno.TZ),
+                'actual_start': datetime(2026, 1, 2, 10, 17,
+                                         tzinfo=Viaggiatreno.TZ),
+                'actual_end': datetime(2026, 1, 2, 11, 19,
+                                       tzinfo=Viaggiatreno.TZ),
                 'status': None,
                 'in_station': False,
                 'not_started': False
@@ -164,8 +159,8 @@ class TrainLineStatusTestCase(TestCase):
                 'train_type': 'PG',
                 'last_update': None,
                 'suppressed_stops': [],
-                'day': datetime.datetime(2026, 1, 3,
-                                         tzinfo=Viaggiatreno.TZ),
+                'day': datetime(2026, 1, 3,
+                                tzinfo=Viaggiatreno.TZ),
                 lambda t: len(t.stops): 15,
                 lambda t: t.stops[-2].name: 'MILANO DOMODOSSOLA',
                 'delay': 0,
@@ -173,14 +168,14 @@ class TrainLineStatusTestCase(TestCase):
                 'destination': 'MILANO CADORNA',
                 'running': True,
                 'arrived': False,
-                'scheduled_start': datetime.datetime(2026, 1, 3, 10, 16,
-                                                     tzinfo=Viaggiatreno.TZ),
-                'scheduled_end': datetime.datetime(2026, 1, 3, 11, 18,
-                                                   tzinfo=Viaggiatreno.TZ),
-                'actual_start': datetime.datetime(2026, 1, 3, 10, 16,
-                                                  tzinfo=Viaggiatreno.TZ),
-                'actual_end': datetime.datetime(2026, 1, 3, 11, 18,
-                                                tzinfo=Viaggiatreno.TZ),
+                'scheduled_start': datetime(2026, 1, 3, 10, 16,
+                                            tzinfo=Viaggiatreno.TZ),
+                'scheduled_end': datetime(2026, 1, 3, 11, 18,
+                                          tzinfo=Viaggiatreno.TZ),
+                'actual_start': datetime(2026, 1, 3, 10, 16,
+                                         tzinfo=Viaggiatreno.TZ),
+                'actual_end': datetime(2026, 1, 3, 11, 18,
+                                       tzinfo=Viaggiatreno.TZ),
                 'status': None,
                 'in_station': False,
                 'not_started': True
@@ -188,11 +183,11 @@ class TrainLineStatusTestCase(TestCase):
             '1767481200000.json': {
                 'train': TrainLine('S01700', '9600'),
                 'train_type': 'PG',
-                'last_update': datetime.datetime(2026, 1, 4, 8, 15, 30,
-                                                 tzinfo=Viaggiatreno.TZ),
+                'last_update': datetime(2026, 1, 4, 8, 15, 30,
+                                        tzinfo=Viaggiatreno.TZ),
                 'suppressed_stops': [],
-                'day': datetime.datetime(2026, 1, 4,
-                                         tzinfo=Viaggiatreno.TZ),
+                'day': datetime(2026, 1, 4,
+                                tzinfo=Viaggiatreno.TZ),
                 lambda t: len(t.stops): 4,
                 lambda t: t.stops[1].name: 'RHO FIERA',
                 'delay': 15,
@@ -200,14 +195,14 @@ class TrainLineStatusTestCase(TestCase):
                 'destination': 'TORINO PORTA NUOVA',
                 'running': True,
                 'arrived': False,
-                'scheduled_start': datetime.datetime(2026, 1, 4, 7, 53,
-                                                     tzinfo=Viaggiatreno.TZ),
-                'scheduled_end': datetime.datetime(2026, 1, 4, 8, 55,
-                                                   tzinfo=Viaggiatreno.TZ),
-                'actual_start': datetime.datetime(2026, 1, 4, 8, 8,
-                                                  tzinfo=Viaggiatreno.TZ),
-                'actual_end': datetime.datetime(2026, 1, 4, 9, 10,
-                                                tzinfo=Viaggiatreno.TZ),
+                'scheduled_start': datetime(2026, 1, 4, 7, 53,
+                                            tzinfo=Viaggiatreno.TZ),
+                'scheduled_end': datetime(2026, 1, 4, 8, 55,
+                                          tzinfo=Viaggiatreno.TZ),
+                'actual_start': datetime(2026, 1, 4, 8, 8,
+                                         tzinfo=Viaggiatreno.TZ),
+                'actual_end': datetime(2026, 1, 4, 9, 10,
+                                       tzinfo=Viaggiatreno.TZ),
                 'status': None,
                 'in_station': False,
                 'not_started': False
