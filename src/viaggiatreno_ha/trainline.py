@@ -10,11 +10,29 @@ _LOGGER = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class TrainLine:
+    """
+        A train line is defined by its departing (first) station code
+        and the train line id.
+
+        For example: `TrainLine('S01765', '136')`
+
+        Use
+        http://www.viaggiatreno.it/infomobilita/resteasy/viaggiatreno/autocompletaStazione/PREFIX
+        to get the station codes for PREFIX* stations
+        (change the prefix for others).
+    """
     starting_station: str
     train_id: str
 
 
 class Viaggiatreno:
+    """
+       Query ViaggiaTreno API with `query_if_running(TrainLine('S01765', '136'))`.
+       The query result is cached and queried again only if possibly needed,
+       assuming train line changes can happen only 30' min before departure and 3h
+       after the scheduled arrive.
+
+    """
     ENDPOINT = (
         "http://www.viaggiatreno.it/infomobilita/"
         "resteasy/viaggiatreno/andamentoTreno/"
@@ -29,12 +47,18 @@ class Viaggiatreno:
 
     @classmethod
     def ms_ts_to_dt(cls, timestamp: int) -> datetime:
+        """Convert a UNIX timestamp (in ms) to a datetime in ViaggiaTreno timezone."""
         return datetime.fromtimestamp(timestamp/1000,
                                       tz=cls.TZ)
 
     async def query(self, line: TrainLine,
                     get_current_time=lambda:
                     datetime.now(tz=Viaggiatreno.TZ)):
+        """
+           Query the ViaggiaTreno API about a TrainLine.
+           ViaggiaTreno gives data only for trains departing today
+           (according to Europe/Rome timezone).
+        """
         current_time = get_current_time()
         midnight = datetime(current_time.year,
                             current_time.month,
@@ -56,6 +80,13 @@ class Viaggiatreno:
     async def query_if_running(self, line: TrainLine,
                                get_current_time=lambda:
                                datetime.now(tz=Viaggiatreno.TZ)):
+        """
+           Query the ViaggiaTreno API about a TrainLine, assuming train line
+           changes can happen only 30' min before departure and 3h
+           after the scheduled arrive.
+           ViaggiaTreno gives data only for trains departing today
+           (according to Europe/Rome timezone).
+        """
         if line not in self.json:
             await self.query(line)
         else:
@@ -71,6 +102,8 @@ class Viaggiatreno:
 
 @dataclass
 class TrainStop:
+    """A train stop in the train line.
+    """
     name: str
     station_id: str
     scheduled: datetime
@@ -79,7 +112,10 @@ class TrainStop:
     actual_track: str | None
 
 
+@dataclass
 class TrainLineStatus:
+    """Status of a train line.
+    """
     train: TrainLine
     train_type: str
     suppressed_stops: list[int]
@@ -100,6 +136,8 @@ class TrainLineStatus:
     not_started: bool
 
     def __init__(self, data: dict):
+        """Create TrainLineStatus from json parsed data.
+        """
         self.train = TrainLine(str(data['idOrigine']),
                                str(data['numeroTreno']))
         self.train_type = data["tipoTreno"]
