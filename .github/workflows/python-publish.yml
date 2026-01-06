@@ -32,6 +32,7 @@ jobs:
       - name: Test
         run: |
           pip install .
+          pip install aiohttp
           (cd tests; python -m unittest viaggiatreno_test.py)
 
       - name: Store the distribution packages
