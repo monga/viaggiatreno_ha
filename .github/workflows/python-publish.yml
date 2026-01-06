@@ -31,6 +31,7 @@ jobs:
 
       - name: Test
         run: |
+          pip install .
           (cd tests; python -m unittest viaggiatreno_test.py)
 
       - name: Store the distribution packages
