@@ -1,10 +1,9 @@
-This package is designed to query the
-[http://www.viaggiatreno.it/infomobilita/index.jsp](Trenitalia ViaggiaTreno) API
-(that are mostly undocumented, but see
-[https://github.com/roughconsensusandrunningcode/TrainMonitor/wiki/API-del-sistema-Viaggiatreno](here,
-in Italian)) in a
-[https://www.home-assistant.io/integrations/viaggiatreno/](Home Assistant
-integration).
+This package is designed to query the [Trenitalia
+ViaggiaTreno](http://www.viaggiatreno.it/infomobilita/index.jsp) API (that are
+mostly undocumented, but see [here, in
+Italian](https://github.com/roughconsensusandrunningcode/TrainMonitor/wiki/API-del-sistema-Viaggiatreno))
+in a [Home Assistant
+integration](https://www.home-assistant.io/integrations/viaggiatreno/).
 
 ```python
 from viaggiatreno_ha.trainline import (Viaggiatreno,
