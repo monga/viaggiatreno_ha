@@ -1,3 +1,8 @@
+"""
+Data model for Trenitalia Viaggiatreno API
+for the needs of Home Assistant.
+"""
+
 import logging
 import json
 from datetime import datetime, timedelta
@@ -69,7 +74,7 @@ class Viaggiatreno:
                                    train_id=line.train_id,
                                    timestamp=midnight_ms)
 
-        _LOGGER.info(f"I'm going to query: {uri}")
+        _LOGGER.info("I'm going to query: %s", uri)
         async with self.session.get(uri,
                                     timeout=self.TIMEOUT) as response:
             if response.status == 200:
@@ -93,13 +98,14 @@ class Viaggiatreno:
             await self.query(line)
         else:
             data = json.loads(self.json[line])
-            line_date = Viaggiatreno.ms_ts_to_dt(data['dataPartenzaTreno'])
+            trainline_date = Viaggiatreno.ms_ts_to_dt(
+                data['dataPartenzaTreno'])
             now = get_current_time()
             start = (Viaggiatreno.ms_ts_to_dt(data['orarioPartenza'])
                      - before)
             end = (Viaggiatreno.ms_ts_to_dt(data['orarioArrivo'])
                    + after)
-            if (now.weekday != line_date.weekday) or (start <= now <= end):
+            if (now.date() != trainline_date.date() or start <= now <= end):
                 await self.query(line)
 
 
@@ -203,6 +209,7 @@ class TrainLineStatus:
 
 
 async def main():
+    """Example of use."""
     async with ClientSession() as session:
         vt = Viaggiatreno(session)
         tl = TrainLine('S01765', '136')

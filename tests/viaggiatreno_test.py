@@ -117,7 +117,7 @@ class ViaggiatrenoTestCase(AioHTTPTestCase):
                     vt.json[tl] = js.read()
 
                 await vt.query_if_useful(tl,
-                                          get_current_time=lambda: mock_dt)
+                                         get_current_time=lambda: mock_dt)
                 self.assertEqual(vt.query.await_count, tcase['awaitings'])
 
 
