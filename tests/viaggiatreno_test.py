@@ -114,7 +114,7 @@ class ViaggiatrenoTestCase(AioHTTPTestCase):
 
                 tl = TrainLine('S01765', '136')
                 with open('1767308400000.json') as js:
-                    vt.json[tl] = js.read()
+                    vt.json[tl] = json.loads(js.read())
 
                 await vt.query_if_useful(tl,
                                          get_current_time=lambda: mock_dt)

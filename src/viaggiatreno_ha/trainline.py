@@ -32,11 +32,8 @@ class TrainLine:
 
 class Viaggiatreno:
     """
-       Query ViaggiaTreno API with `query_if_running(TrainLine('S01765', '136'))`.
-       The query result is cached and queried again only if possibly needed,
-       assuming train line changes can happen only 30' min before departure and 3h
-       after the scheduled arrive.
-
+       Query ViaggiaTreno API with
+       `query_if_useful(TrainLine('S01765', '136'))`.
     """
     ENDPOINT = (
         "http://www.viaggiatreno.it/infomobilita/"
@@ -48,11 +45,12 @@ class Viaggiatreno:
 
     def __init__(self, session: ClientSession):
         self.session = session
-        self.json: dict[TrainLine, str] = {}
+        self.json: dict[TrainLine, dict] = {}
 
     @classmethod
     def ms_ts_to_dt(cls, timestamp: int) -> datetime:
-        """Convert a UNIX timestamp (in ms) to a datetime in ViaggiaTreno timezone."""
+        """Convert a UNIX timestamp (in ms) to a datetime
+           in ViaggiaTreno timezone."""
         return datetime.fromtimestamp(timestamp/1000,
                                       tz=cls.TZ)
 
@@ -83,10 +81,10 @@ class Viaggiatreno:
                 self.json[line] = js
 
     async def query_if_useful(self, line: TrainLine,
-                               before: timedelta = timedelta(minutes=30),
-                               after: timedelta = timedelta(hours=3),
-                               get_current_time=lambda:
-                               datetime.now(tz=Viaggiatreno.TZ)):
+                              before: timedelta = timedelta(minutes=30),
+                              after: timedelta = timedelta(hours=3),
+                              get_current_time=lambda:
+                              datetime.now(tz=Viaggiatreno.TZ)):
         """
            Query the ViaggiaTreno API about a TrainLine, assuming train line
            changes can happen only 30' min before departure and 3h
@@ -97,7 +95,7 @@ class Viaggiatreno:
         if line not in self.json:
             await self.query(line)
         else:
-            data = json.loads(self.json[line])
+            data = self.json[line]
             trainline_date = Viaggiatreno.ms_ts_to_dt(
                 data['dataPartenzaTreno'])
             now = get_current_time()
