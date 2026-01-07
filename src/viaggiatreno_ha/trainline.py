@@ -1,9 +1,14 @@
-from aiohttp import ClientTimeout, ClientSession  # type: ignore
+"""
+Data model for Trenitalia Viaggiatreno API
+for the needs of Home Assistant.
+"""
+
+import logging
+import json
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from dataclasses import dataclass
-import logging
-import json
+from aiohttp import ClientTimeout, ClientSession  # type: ignore
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -69,7 +74,7 @@ class Viaggiatreno:
                                    train_id=line.train_id,
                                    timestamp=midnight_ms)
 
-        _LOGGER.info(f"I'm going to query: {uri}")
+        _LOGGER.info("I'm going to query: %s", uri)
         async with self.session.get(uri,
                                     timeout=self.TIMEOUT) as response:
             if response.status == 200:
@@ -77,7 +82,9 @@ class Viaggiatreno:
                 assert isinstance(js, dict), f"Not a dict, but a {type(js)}"
                 self.json[line] = js
 
-    async def query_if_running(self, line: TrainLine,
+    async def query_if_useful(self, line: TrainLine,
+                               before: timedelta = timedelta(minutes=30),
+                               after: timedelta = timedelta(hours=3),
                                get_current_time=lambda:
                                datetime.now(tz=Viaggiatreno.TZ)):
         """
@@ -91,12 +98,14 @@ class Viaggiatreno:
             await self.query(line)
         else:
             data = json.loads(self.json[line])
+            trainline_date = Viaggiatreno.ms_ts_to_dt(
+                data['dataPartenzaTreno'])
             now = get_current_time()
             start = (Viaggiatreno.ms_ts_to_dt(data['orarioPartenza'])
-                     - timedelta(minutes=30))
+                     - before)
             end = (Viaggiatreno.ms_ts_to_dt(data['orarioArrivo'])
-                   + timedelta(hours=3))
-            if start <= now <= end:
+                   + after)
+            if (now.date() != trainline_date.date() or start <= now <= end):
                 await self.query(line)
 
 
@@ -200,10 +209,11 @@ class TrainLineStatus:
 
 
 async def main():
+    """Example of use."""
     async with ClientSession() as session:
         vt = Viaggiatreno(session)
         tl = TrainLine('S01765', '136')
-        await vt.query_if_running(tl)
+        await vt.query_if_useful(tl)
         print(vt.json[tl])
 
 if __name__ == "__main__":

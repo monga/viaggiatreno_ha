@@ -83,7 +83,7 @@ class ViaggiatrenoTestCase(AioHTTPTestCase):
         await vt.query(tl, get_current_time=lambda: mock_datetime)
         self.assertNotIn(tl, vt.json)
 
-    async def test_query_if_running_first(self):
+    async def test_query_if_useful_first(self):
         mock_datetime = \
             datetime(2026, 1, 2,
                      tzinfo=Viaggiatreno.TZ)
@@ -92,10 +92,10 @@ class ViaggiatrenoTestCase(AioHTTPTestCase):
         vt.query = AsyncMock()
 
         tl = TrainLine('S01765', '136')
-        await vt.query_if_running(tl, get_current_time=lambda: mock_datetime)
+        await vt.query_if_useful(tl, get_current_time=lambda: mock_datetime)
         vt.query.assert_awaited_once()
 
-    async def test_query_if_running(self):
+    async def test_query_if_useful(self):
         expected = [{'delta_min': -15, 'awaitings': 1},
                     {'delta_min': -31, 'awaitings': 0},
                     {'delta_min': 62, 'awaitings': 1},
@@ -116,8 +116,8 @@ class ViaggiatrenoTestCase(AioHTTPTestCase):
                 with open('1767308400000.json') as js:
                     vt.json[tl] = js.read()
 
-                await vt.query_if_running(tl,
-                                          get_current_time=lambda: mock_dt)
+                await vt.query_if_useful(tl,
+                                         get_current_time=lambda: mock_dt)
                 self.assertEqual(vt.query.await_count, tcase['awaitings'])
 
 
