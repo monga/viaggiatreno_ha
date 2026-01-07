@@ -16,7 +16,7 @@ async def main():
     async with ClientSession() as session:
         vt = Viaggiatreno(session)
         tl = TrainLine('S01765', '136')
-        await vt.query_if_running(tl)
+        await vt.query_if_useful(tl)
         ts = TrainLineStatus(vt.json[tl])
         print(ts)
 
