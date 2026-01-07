@@ -1,4 +1,9 @@
-from viaggiatreno_ha.trainline import Viaggiatreno, TrainLine, TrainLineStatus
+from viaggiatreno_ha.trainline import (Viaggiatreno,
+                                       TrainLine,
+                                       TrainLineStatus,
+                                       TrainState,
+                                       Timetable,
+                                       TrainPath)
 from aiohttp.test_utils import AioHTTPTestCase
 from aiohttp import web
 import json
@@ -83,7 +88,7 @@ class ViaggiatrenoTestCase(AioHTTPTestCase):
         await vt.query(tl, get_current_time=lambda: mock_datetime)
         self.assertNotIn(tl, vt.json)
 
-    async def test_query_if_running_first(self):
+    async def test_query_if_useful_first(self):
         mock_datetime = \
             datetime(2026, 1, 2,
                      tzinfo=Viaggiatreno.TZ)
@@ -92,10 +97,10 @@ class ViaggiatrenoTestCase(AioHTTPTestCase):
         vt.query = AsyncMock()
 
         tl = TrainLine('S01765', '136')
-        await vt.query_if_running(tl, get_current_time=lambda: mock_datetime)
+        await vt.query_if_useful(tl, get_current_time=lambda: mock_datetime)
         vt.query.assert_awaited_once()
 
-    async def test_query_if_running(self):
+    async def test_query_if_useful(self):
         expected = [{'delta_min': -15, 'awaitings': 1},
                     {'delta_min': -31, 'awaitings': 0},
                     {'delta_min': 62, 'awaitings': 1},
@@ -114,10 +119,10 @@ class ViaggiatrenoTestCase(AioHTTPTestCase):
 
                 tl = TrainLine('S01765', '136')
                 with open('1767308400000.json') as js:
-                    vt.json[tl] = js.read()
+                    vt.json[tl] = json.loads(js.read())
 
-                await vt.query_if_running(tl,
-                                          get_current_time=lambda: mock_dt)
+                await vt.query_if_useful(tl,
+                                         get_current_time=lambda: mock_dt)
                 self.assertEqual(vt.query.await_count, tcase['awaitings'])
 
 
@@ -128,84 +133,61 @@ class TrainLineStatusTestCase(TestCase):
 
         expected = {
             '1767308400000.json': {
-                'train': TrainLine('S01765', '136'),
-                'train_type': 'PG',
-                'last_update': datetime(2026, 1, 2, 11, 10, 32,
+                'date': datetime(2026, 1, 2,
+                                 tzinfo=Viaggiatreno.TZ),
+                'last_update': datetime(2026, 1, 2, 11, 10,
                                         tzinfo=Viaggiatreno.TZ),
-                'suppressed_stops': [],
-                'day': datetime(2026, 1, 2,
-                                tzinfo=Viaggiatreno.TZ),
+                'path': TrainPath('COMO LAGO', 'MILANO CADORNA'),
                 lambda t: len(t.stops): 15,
                 lambda t: t.stops[-1].name: 'MILANO CADORNA',
-                'delay': 1,
-                'origin': 'COMO LAGO',
-                'destination': 'MILANO CADORNA',
-                'running': True,
-                'arrived': False,
-                'scheduled_start': datetime(2026, 1, 2, 10, 16,
-                                            tzinfo=Viaggiatreno.TZ),
-                'scheduled_end': datetime(2026, 1, 2, 11, 18,
-                                          tzinfo=Viaggiatreno.TZ),
-                'actual_start': datetime(2026, 1, 2, 10, 17,
-                                         tzinfo=Viaggiatreno.TZ),
-                'actual_end': datetime(2026, 1, 2, 11, 19,
-                                       tzinfo=Viaggiatreno.TZ),
-                'status': None,
-                'in_station': False,
-                'not_started': False
+                'state': TrainState.RUNNING,
+                'timetable': Timetable(datetime(2026, 1, 2, 10, 16,
+                                                tzinfo=Viaggiatreno.TZ),
+                                       datetime(2026, 1, 2, 11, 18,
+                                                tzinfo=Viaggiatreno.TZ),
+                                       datetime(2026, 1, 2, 10, 17,
+                                                tzinfo=Viaggiatreno.TZ),
+                                       datetime(2026, 1, 2, 11, 19,
+                                                tzinfo=Viaggiatreno.TZ),
+                                       1)
             },
             '1767394800000.json': {
-                'train': TrainLine('S01765', '136'),
-                'train_type': 'PG',
+                'date': datetime(2026, 1, 3,
+                                 tzinfo=Viaggiatreno.TZ),
                 'last_update': None,
-                'suppressed_stops': [],
-                'day': datetime(2026, 1, 3,
-                                tzinfo=Viaggiatreno.TZ),
+                'path': TrainPath('COMO LAGO', 'MILANO CADORNA'),
                 lambda t: len(t.stops): 15,
                 lambda t: t.stops[-2].name: 'MILANO DOMODOSSOLA',
-                'delay': 0,
-                'origin': 'COMO LAGO',
-                'destination': 'MILANO CADORNA',
-                'running': True,
-                'arrived': False,
-                'scheduled_start': datetime(2026, 1, 3, 10, 16,
-                                            tzinfo=Viaggiatreno.TZ),
-                'scheduled_end': datetime(2026, 1, 3, 11, 18,
-                                          tzinfo=Viaggiatreno.TZ),
-                'actual_start': datetime(2026, 1, 3, 10, 16,
-                                         tzinfo=Viaggiatreno.TZ),
-                'actual_end': datetime(2026, 1, 3, 11, 18,
-                                       tzinfo=Viaggiatreno.TZ),
-                'status': None,
-                'in_station': False,
-                'not_started': True
+                'state': TrainState.NOT_YET_DEPARTED,
+                'timetable': Timetable(datetime(2026, 1, 3, 10, 16,
+                                                tzinfo=Viaggiatreno.TZ),
+                                       datetime(2026, 1, 3, 11, 18,
+                                                tzinfo=Viaggiatreno.TZ),
+                                       datetime(2026, 1, 3, 10, 16,
+                                                tzinfo=Viaggiatreno.TZ),
+                                       datetime(2026, 1, 3, 11, 18,
+                                                tzinfo=Viaggiatreno.TZ),
+                                       0)
             },
             '1767481200000.json': {
-                'train': TrainLine('S01700', '9600'),
-                'train_type': 'PG',
-                'last_update': datetime(2026, 1, 4, 8, 15, 30,
+                'date': datetime(2026, 1, 4,
+                                 tzinfo=Viaggiatreno.TZ),
+
+                'last_update': datetime(2026, 1, 4, 8, 15,
                                         tzinfo=Viaggiatreno.TZ),
-                'suppressed_stops': [],
-                'day': datetime(2026, 1, 4,
-                                tzinfo=Viaggiatreno.TZ),
+                'path': TrainPath('MILANO CENTRALE', 'TORINO PORTA NUOVA'),
                 lambda t: len(t.stops): 4,
                 lambda t: t.stops[1].name: 'RHO FIERA',
-                'delay': 15,
-                'origin': 'MILANO CENTRALE',
-                'destination': 'TORINO PORTA NUOVA',
-                'running': True,
-                'arrived': False,
-                'scheduled_start': datetime(2026, 1, 4, 7, 53,
-                                            tzinfo=Viaggiatreno.TZ),
-                'scheduled_end': datetime(2026, 1, 4, 8, 55,
-                                          tzinfo=Viaggiatreno.TZ),
-                'actual_start': datetime(2026, 1, 4, 8, 8,
-                                         tzinfo=Viaggiatreno.TZ),
-                'actual_end': datetime(2026, 1, 4, 9, 10,
-                                       tzinfo=Viaggiatreno.TZ),
-                'status': None,
-                'in_station': False,
-                'not_started': False
+                'state': TrainState.RUNNING,
+                'timetable': Timetable(datetime(2026, 1, 4, 7, 53,
+                                                tzinfo=Viaggiatreno.TZ),
+                                       datetime(2026, 1, 4, 8, 55,
+                                                tzinfo=Viaggiatreno.TZ),
+                                       datetime(2026, 1, 4, 8, 8,
+                                                tzinfo=Viaggiatreno.TZ),
+                                       datetime(2026, 1, 4, 9, 10,
+                                                tzinfo=Viaggiatreno.TZ),
+                                       15)
             },
         }
 
