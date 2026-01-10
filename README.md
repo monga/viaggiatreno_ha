@@ -11,14 +11,13 @@ from viaggiatreno_ha.trainline import (Viaggiatreno,
                                        TrainLineStatus)
 from aiohttp import ClientSession
 
-
 async def main():
+    """Example of use."""
     async with ClientSession() as session:
         vt = Viaggiatreno(session)
         tl = TrainLine('S01765', '136')
         await vt.query_if_useful(tl)
-        ts = TrainLineStatus(vt.json[tl])
-        print(ts)
+        print(vt.get_line_status(tl))
 
 if __name__ == "__main__":
     import asyncio
