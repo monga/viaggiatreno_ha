@@ -2,7 +2,7 @@
 
 name: Upload Python Package
 
-on: push
+on: [push]
 
 permissions:
   contents: read
@@ -56,6 +56,7 @@ jobs:
       name: pypi
       # OPTIONAL: uncomment and update to include your PyPI project URL in the deployment status:
       # url: https://pypi.org/p/YOURPROJECT
+      url: https://pypi.org/p/viaggiatreno_ha
       #
       # ALTERNATIVE: if your GitHub Release name is the PyPI project version string
       # ALTERNATIVE: exactly, uncomment the following line instead:
@@ -68,7 +69,7 @@ jobs:
           name: release-dists
           path: dist/
 
-      - name: Publish release distributions to PyPI
+      - name: Publish distribution 📦 to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist/

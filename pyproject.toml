@@ -1,19 +1,21 @@
 [build-system]
 requires = [
          "setuptools >= 77.0.3",
-         "aiohttp"
-         ]
+          ]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "viaggiatreno_ha"
-version = "0.1.0"
+version = "0.1.1"
 authors = [
   { name="Mattia Monga", email="mattia.monga@unimi.it" },
 ]
 description = "Viaggiatreno API wrapper to use with Home Assistant."
 readme = "README.md"
 requires-python = ">=3.9"
+dependencies = [
+             "aiohttp"
+]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
