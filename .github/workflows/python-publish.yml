@@ -25,7 +25,7 @@ jobs:
 
       - name: Build release distributions
         run: |
-          echo "GitHub context ref: ${{ github.ref }}"
+          echo "GitHub context: ${{ toJSON(github) }}"
           python -m pip install -U pip
           python -m pip install build --user
 
