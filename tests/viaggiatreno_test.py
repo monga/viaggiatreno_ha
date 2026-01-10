@@ -1,9 +1,12 @@
-from viaggiatreno_ha.trainline import (Viaggiatreno,
-                                       TrainLine,
-                                       TrainLineStatus,
-                                       TrainState,
-                                       Timetable,
-                                       TrainPath)
+from viaggiatreno_ha.trainline import (
+    Viaggiatreno,
+    TrainLine,
+    TrainLineStatus,
+    TrainState,
+    Timetable,
+    TrainPath,
+    VIAGGIATRENO_TZ as TZ
+)
 from aiohttp.test_utils import AioHTTPTestCase
 from aiohttp import web
 import json
@@ -91,7 +94,7 @@ class ViaggiatrenoTestCase(AioHTTPTestCase):
     async def test_query_if_useful_first(self):
         mock_datetime = \
             datetime(2026, 1, 2,
-                     tzinfo=Viaggiatreno.TZ)
+                     tzinfo=TZ)
         vt = Viaggiatreno(self.client)
         vt.ENDPOINT = '/{station_id}/{train_id}/{timestamp}'
         vt.query = AsyncMock()
@@ -110,7 +113,7 @@ class ViaggiatrenoTestCase(AioHTTPTestCase):
         for tcase in expected:
             with self.subTest(f"Query: {tcase['delta_min']}' Δ from start"):
                 mock_dt = datetime(2026, 1, 2, 10, 16,
-                                   tzinfo=Viaggiatreno.TZ) \
+                                   tzinfo=TZ) \
                                    + timedelta(
                                        minutes=tcase['delta_min'])
                 vt = Viaggiatreno(self.client)
@@ -134,59 +137,59 @@ class TrainLineStatusTestCase(TestCase):
         expected = {
             '1767308400000.json': {
                 'date': datetime(2026, 1, 2,
-                                 tzinfo=Viaggiatreno.TZ),
+                                 tzinfo=TZ),
                 'last_update': datetime(2026, 1, 2, 11, 10,
-                                        tzinfo=Viaggiatreno.TZ),
+                                        tzinfo=TZ),
                 'path': TrainPath('COMO LAGO', 'MILANO CADORNA'),
                 lambda t: len(t.stops): 15,
                 lambda t: t.stops[-1].name: 'MILANO CADORNA',
                 'state': TrainState.RUNNING,
                 'timetable': Timetable(datetime(2026, 1, 2, 10, 16,
-                                                tzinfo=Viaggiatreno.TZ),
+                                                tzinfo=TZ),
                                        datetime(2026, 1, 2, 11, 18,
-                                                tzinfo=Viaggiatreno.TZ),
+                                                tzinfo=TZ),
                                        datetime(2026, 1, 2, 10, 17,
-                                                tzinfo=Viaggiatreno.TZ),
+                                                tzinfo=TZ),
                                        datetime(2026, 1, 2, 11, 19,
-                                                tzinfo=Viaggiatreno.TZ),
+                                                tzinfo=TZ),
                                        1)
             },
             '1767394800000.json': {
                 'date': datetime(2026, 1, 3,
-                                 tzinfo=Viaggiatreno.TZ),
+                                 tzinfo=TZ),
                 'last_update': None,
                 'path': TrainPath('COMO LAGO', 'MILANO CADORNA'),
                 lambda t: len(t.stops): 15,
                 lambda t: t.stops[-2].name: 'MILANO DOMODOSSOLA',
                 'state': TrainState.NOT_YET_DEPARTED,
                 'timetable': Timetable(datetime(2026, 1, 3, 10, 16,
-                                                tzinfo=Viaggiatreno.TZ),
+                                                tzinfo=TZ),
                                        datetime(2026, 1, 3, 11, 18,
-                                                tzinfo=Viaggiatreno.TZ),
+                                                tzinfo=TZ),
                                        datetime(2026, 1, 3, 10, 16,
-                                                tzinfo=Viaggiatreno.TZ),
+                                                tzinfo=TZ),
                                        datetime(2026, 1, 3, 11, 18,
-                                                tzinfo=Viaggiatreno.TZ),
+                                                tzinfo=TZ),
                                        0)
             },
             '1767481200000.json': {
                 'date': datetime(2026, 1, 4,
-                                 tzinfo=Viaggiatreno.TZ),
+                                 tzinfo=TZ),
 
                 'last_update': datetime(2026, 1, 4, 8, 15,
-                                        tzinfo=Viaggiatreno.TZ),
+                                        tzinfo=TZ),
                 'path': TrainPath('MILANO CENTRALE', 'TORINO PORTA NUOVA'),
                 lambda t: len(t.stops): 4,
                 lambda t: t.stops[1].name: 'RHO FIERA',
                 'state': TrainState.RUNNING,
                 'timetable': Timetable(datetime(2026, 1, 4, 7, 53,
-                                                tzinfo=Viaggiatreno.TZ),
+                                                tzinfo=TZ),
                                        datetime(2026, 1, 4, 8, 55,
-                                                tzinfo=Viaggiatreno.TZ),
+                                                tzinfo=TZ),
                                        datetime(2026, 1, 4, 8, 8,
-                                                tzinfo=Viaggiatreno.TZ),
+                                                tzinfo=TZ),
                                        datetime(2026, 1, 4, 9, 10,
-                                                tzinfo=Viaggiatreno.TZ),
+                                                tzinfo=TZ),
                                        15)
             },
         }
