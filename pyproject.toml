@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "viaggiatreno_ha"
-version = "0.1.8"
+version = "0.2.0"
 authors = [
   { name="Mattia Monga", email="mattia.monga@unimi.it" },
 ]
