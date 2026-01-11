@@ -137,14 +137,14 @@ class TrainLineStatus:
         if data['tipoTreno'] == 'PG' and data['provvedimento'] == 0:
             if data['nonPartito']:
                 self.state = TrainState.NOT_YET_DEPARTED
+            elif data['arrivato']:
+                self.state = TrainState.ARRIVED
             else:
                 self.state = TrainState.RUNNING
         elif data['tipoTreno'] == 'ST' and data['provvedimento'] == 1:
             self.state = TrainState.CANCELLED
         elif data['tipoTreno'] in ('PP', 'SI', 'SF'):
             self.state = TrainState.PARTIALLY_CANCELLED
-        elif data['arrivato']:
-            self.state = TrainState.ARRIVED
         else:
             # Unknown state (a deviation?)
             assert data['provvedimento'] != 0
