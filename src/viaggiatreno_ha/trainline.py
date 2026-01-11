@@ -208,6 +208,10 @@ class Viaggiatreno:
                 js = await response.json()
                 assert isinstance(js, dict), f"Not a dict, but a {type(js)}"
                 self.json[line] = js
+            elif response.status == 204:
+                _LOGGER.info("No content: check query parameters")
+            else:
+                _LOGGER.info("Server response not OK: %s", response)
 
     async def query_if_useful(self, line: TrainLine,
                               before: timedelta = timedelta(minutes=30),
