@@ -221,7 +221,7 @@ class Viaggiatreno:
         """
            Query the ViaggiaTreno API about a TrainLine, assuming train line
            changes can happen only 30' min before departure and 3h
-           after the scheduled arrive.
+           after the scheduled arrive (if not arrived).
            ViaggiaTreno gives data only for trains departing today
            (according to Europe/Rome timezone).
         """
@@ -229,12 +229,13 @@ class Viaggiatreno:
             await self.query(line)
         else:
             data = self.json[line]
-            trainline_date = ms_ts_to_dt(
-                data['dataPartenzaTreno'])
+            trainline_date = ms_ts_to_dt(data['dataPartenzaTreno'])
+            arrived = data['arrivato']
             now = get_current_time()
             start = ms_ts_to_dt(data['orarioPartenza']) - before
             end = ms_ts_to_dt(data['orarioArrivo']) + after
-            if (now.date() != trainline_date.date() or start <= now <= end):
+            if (now.date() != trainline_date.date()
+                or (not arrived and start <= now <= end)):
                 await self.query(line)
 
 
