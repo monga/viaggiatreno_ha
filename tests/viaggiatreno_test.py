@@ -21,17 +21,27 @@ from unittest.mock import AsyncMock
 
 class ViaggiatrenoTestCase(AioHTTPTestCase):
 
+    user_agents: list[str] = []
+
     async def get_application(self):
+        self.user_agents = []
 
         async def train(request):
+            self.user_agents.append(request.headers.get('User-Agent'))
             day = request.url.parts[-1]
             with open(f'{day}.json') as r:
                 return web.json_response(json.loads(r.read()))
 
         async def status204(request):
+            self.user_agents.append(request.headers.get('User-Agent'))
             return web.Response(status=204)
 
+        async def status403(request):
+            self.user_agents.append(request.headers.get('User-Agent'))
+            return web.Response(status=403)
+
         async def error404(request):
+            self.user_agents.append(request.headers.get('User-Agent'))
             raise web.HTTPNotFound()
 
         app = web.Application()
@@ -41,9 +51,19 @@ class ViaggiatrenoTestCase(AioHTTPTestCase):
         app.router.add_get('/S01765/136/1767394800000', train)
         # Train MILANO CENTRALE to TORINO PORTA NUOVA, 2026-01-04
         app.router.add_get('/S01765/136/1767481200000', train)
-        app.router.add_get('/S01765/666/*', status204)
-        app.router.add_get('/666/*/*', error404)
+        # Any other day for this train: not queried by ViaggiaTreno
+        app.router.add_get('/S01765/136/{timestamp}', error404)
+        app.router.add_get('/S01765/666/{timestamp}', status204)
+        app.router.add_get('/S01765/403/{timestamp}', status403)
+        app.router.add_get('/666/{train_id}/{timestamp}', error404)
         return app
+
+    def assert_user_agent_sent(self):
+        """The ViaggiaTreno WAF blocks known bot User-Agents."""
+        self.assertTrue(self.user_agents)
+        for ua in self.user_agents:
+            self.assertEqual(ua, Viaggiatreno.USER_AGENT)
+            self.assertNotIn('aiohttp', ua)
 
     async def test_query_connection(self):
         mock_datetime = \
@@ -57,6 +77,7 @@ class ViaggiatrenoTestCase(AioHTTPTestCase):
         self.assertIn(tl, vt.json)
         data = vt.json[tl]
         self.assertEqual(data['origine'], 'COMO LAGO')
+        self.assert_user_agent_sent()
 
     async def test_past_date_error(self):
         mock_datetime = \
@@ -68,6 +89,7 @@ class ViaggiatrenoTestCase(AioHTTPTestCase):
         tl = TrainLine('S01765', '136')
         await vt.query(tl, get_current_time=lambda: mock_datetime)
         self.assertNotIn(tl, vt.json)
+        self.assert_user_agent_sent()
 
     async def test_204_error(self):
         mock_datetime = \
@@ -79,6 +101,19 @@ class ViaggiatrenoTestCase(AioHTTPTestCase):
         tl = TrainLine('S01765', '666')
         await vt.query(tl, get_current_time=lambda: mock_datetime)
         self.assertNotIn(tl, vt.json)
+        self.assert_user_agent_sent()
+
+    async def test_403_error(self):
+        mock_datetime = \
+            datetime(2026, 1, 1,
+                     tzinfo=ZoneInfo("America/Los_Angeles"))
+        vt = Viaggiatreno(self.client)
+        vt.ENDPOINT = '/{station_id}/{train_id}/{timestamp}'
+
+        tl = TrainLine('S01765', '403')
+        await vt.query(tl, get_current_time=lambda: mock_datetime)
+        self.assertNotIn(tl, vt.json)
+        self.assert_user_agent_sent()
 
     async def test_404_error(self):
         mock_datetime = \
@@ -90,6 +125,7 @@ class ViaggiatrenoTestCase(AioHTTPTestCase):
         tl = TrainLine('666', '666')
         await vt.query(tl, get_current_time=lambda: mock_datetime)
         self.assertNotIn(tl, vt.json)
+        self.assert_user_agent_sent()
 
     async def test_query_if_useful_first(self):
         mock_datetime = \

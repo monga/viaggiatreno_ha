@@ -165,12 +165,15 @@ class Viaggiatreno:
        Query ViaggiaTreno API with
        `query_if_useful(TrainLine('S01765', '136'))`.
     """
-    ENDPOINT = (
+    ENDPOINT: str = (
         "http://www.viaggiatreno.it/infomobilita/"
         "resteasy/viaggiatreno/andamentoTreno/"
         "{station_id}/{train_id}/{timestamp}"
     )
     TIMEOUT = ClientTimeout(total=15, connect=5)  # seconds
+    # Akamai WAF answers 403 to known bot User-Agents
+    # (aiohttp, urllib, curl, ...), so we do not send the default one.
+    USER_AGENT = 'viaggiatreno_ha'
 
     def __init__(self, session: ClientSession):
         self.session = session
@@ -202,14 +205,21 @@ class Viaggiatreno:
                                    timestamp=midnight_ms)
 
         _LOGGER.info("I'm going to query: %s", uri)
-        async with self.session.get(uri,
-                                    timeout=self.TIMEOUT) as response:
+        async with self.session.get(
+                uri,
+                timeout=self.TIMEOUT,
+                headers={'User-Agent': self.USER_AGENT}) as response:
             if response.status == 200:
                 js = await response.json()
                 assert isinstance(js, dict), f"Not a dict, but a {type(js)}"
                 self.json[line] = js
             elif response.status == 204:
                 _LOGGER.info("No content: check query parameters")
+            elif response.status == 403:
+                _LOGGER.warning(
+                    "Access denied: the ViaggiaTreno WAF has blocked"
+                    " the request: check the User-Agent (%s)",
+                    self.USER_AGENT)
             else:
                 _LOGGER.info("Server response not OK: %s", response)
 
